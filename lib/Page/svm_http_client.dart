@@ -4,32 +4,58 @@ import 'dart:convert';
 class SVMHttpClient {
   final String baseUrl;
 
-  SVMHttpClient({this.baseUrl = 'http://192.168.1.8:8080'}); // Ganti IP jika Pyroid di HP
+  SVMHttpClient({this.baseUrl = 'http://192.168.1.8:8080'}); // Sesuaikan dengan IP Pydroid Anda
 
   Future<String> classify(double bpm, double angle) async {
-  try {
-    final url = '$baseUrl/predict';
-    print('📡 Mengirim POST ke: $url');
-    print('📤 Payload: bpm=$bpm, angle=$angle');
+    try {
+      final url = '$baseUrl/predict';
+      print('🔄 Memulai klasifikasi SVM');
+      print('📡 URL: $url');
+      print('📤 Data: BPM=$bpm, Angle=$angle');      
+      
+      // Konversi BPM ke integer dan angle ke float dengan 2 decimal places
+      final bpmValue = bpm.round();
+      final angleValue = double.parse(angle.toStringAsFixed(2));
+      
+      print('📤 Data setelah konversi: BPM=$bpmValue, Angle=$angleValue');
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'BPM': bpmValue,
+          'Kemiringan': angleValue
+        }),
+      );
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'bpm': bpm, 'angle': angle}),
-    );
+      print('📥 Status Response: ${response.statusCode}');
+      print('📥 Headers: ${response.headers}');
+      print('📥 Body: ${response.body}');
 
-    print('📥 Status Code: ${response.statusCode}');
-    print('📥 Response Body: ${response.body}');
-
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      return json['label'];
-    } else {
-      return 'Gagal koneksi: ${response.statusCode}';
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        final label = result['label'];
+        final code = result['code'];
+        print('✅ Hasil Klasifikasi: $label (Kode: $code)');
+        if (label == null) {
+          return 'Error: Hasil klasifikasi kosong';
+        }
+        return label.toString();
+      } else {
+        final errorBody = response.body;
+        print('❌ Error HTTP: ${response.statusCode}');
+        print('❌ Error Body: $errorBody');
+        try {
+          final errorJson = jsonDecode(errorBody);
+          return 'Error: ${errorJson['error'] ?? 'Unknown error'}';
+        } catch (_) {
+          return 'Error: HTTP ${response.statusCode}';
+        }
+      }
+    } catch (e, stackTrace) {
+      print('❌ Exception: $e');
+      print('📋 Stack trace: $stackTrace');
+      return 'Error: $e';
     }
-  } catch (e) {
-    print('❌ Exception saat HTTP: $e');
-    return 'Error: $e';
   }
-}
 }
