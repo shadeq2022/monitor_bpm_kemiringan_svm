@@ -25,6 +25,9 @@ class _MonitoringPageState extends State<MonitoringPage> {
   Timer? _debounceTimer;
   Timer? _debounceSVM;
 
+  // Variabel untuk melacak apakah alarm sudah aktif dan kita sudah navigasi ke WarningPage
+  bool _isAlarmActive = false;
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +71,30 @@ class _MonitoringPageState extends State<MonitoringPage> {
           result = res;
           _isLoading = false;
         });
+
+        // --- LOGIKA ALARM OTOMATIS: PINDAH KE WARNING_PAGE DULU ---
+        // PENTING: Periksa apakah hasil klasifikasi adalah "mengantuk berat" atau "mengantuk sedang"
+        // dan pastikan alarm belum aktif untuk mencegah navigasi berulang.
+        if ((res.toLowerCase().contains('mengantuk berat') || res.toLowerCase().contains('mengantuk sedang')) && !_isAlarmActive) {
+          _isAlarmActive = true; // Set flag alarm aktif
+          print('Deteksi mengantuk: Memicu alarm ke WarningPage!');
+          // Navigasi ke WarningPage, ganti halaman ini dari stack.
+          // Callback .then((_) {...}) akan dieksekusi setelah kembali dari WarningPage.
+          Navigator.pushReplacementNamed(context, '/warning').then((_) {
+            // Setelah kembali dari WarningPage (artinya alarm sudah dimatikan),
+            // reset flag agar alarm bisa dipicu lagi di kemudian hari jika kondisi kembali mengantuk.
+            _isAlarmActive = false; 
+            print('Kembali dari WarningPage, _isAlarmActive direset.');
+          });
+        } else if (!res.toLowerCase().contains('mengantuk beraty') && !res.toLowerCase().contains('mengantuk sedang') && _isAlarmActive) {
+          // Kondisi ini memastikan jika pengguna kembali ke MonitoringPage
+          // dan sudah tidak mengantuk, _isAlarmActive direset.
+          // Ini juga menangani skenario jika _isAlarmActive true (karena terdeteksi mengantuk)
+          // tapi WarningPage belum sempat dibuka (misal karena ada navigasi lain).
+          _isAlarmActive = false;
+          print('Kondisi normal, _isAlarmActive direset.');
+        }
+        // --- AKHIR LOGIKA ALARM OTOMATIS ---
       }
     } catch (e) {
       if (mounted) {
@@ -166,7 +193,13 @@ class _MonitoringPageState extends State<MonitoringPage> {
             const SizedBox(height: 40),
             ElevatedButton(
               onPressed: () {
-                Navigator.pushNamed(context, '/history');
+                // Pastikan navigasi ini juga tidak memicu ulang alarm jika sudah aktif
+                if (!_isAlarmActive) { // Tambahkan kondisi ini
+                  Navigator.pushNamed(context, '/history');
+                } else {
+                  // Opsional: berikan feedback ke user bahwa alarm aktif
+                  print('Alarm sedang aktif, tidak bisa melihat riwayat sekarang.');
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,

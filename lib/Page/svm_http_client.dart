@@ -4,7 +4,7 @@ import 'dart:convert';
 class SVMHttpClient {
   final String baseUrl;
 
-  SVMHttpClient({this.baseUrl = 'http://192.168.1.8:8080'}); // Sesuaikan dengan IP Pydroid Anda
+  SVMHttpClient({this.baseUrl = 'http://192.168.1.7:5000'}); // Sesuaikan dengan IP Pydroid Anda
 
   Future<String> classify(double bpm, double angle) async {
     try {
